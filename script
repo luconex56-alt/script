@@ -1,7 +1,7 @@
---// ONEONEX HUB V8 | ALL-IN-ONE CLIENT DEV HUB
+--// OneOneX Hub V6 | CLEAN FIX (FLY + UI + RESET ORIGINAL STATE)
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
@@ -9,205 +9,337 @@ local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
-------------------------------------------------
--- CHARACTER
-------------------------------------------------
+----------------------------------------------------
+-- CHARACTER + SAVE ORIGINAL STATS (IMPORTANT FIX)
+----------------------------------------------------
+
 local char = player.Character or player.CharacterAdded:Wait()
 local hum = char:WaitForChild("Humanoid")
 local root = char:WaitForChild("HumanoidRootPart")
+
+local originalSpeed = hum.WalkSpeed
+local originalJump = hum.JumpPower
 
 player.CharacterAdded:Connect(function(c)
 	char = c
 	hum = c:WaitForChild("Humanoid")
 	root = c:WaitForChild("HumanoidRootPart")
+
+	originalSpeed = hum.WalkSpeed
+	originalJump = hum.JumpPower
 end)
 
-------------------------------------------------
--- STATES
-------------------------------------------------
-local fly, noclip, esp, aim = false, false, false, false
-local speed, jump, flySpeed = 40, 70, 1
-local target = nil
+----------------------------------------------------
+-- STATE
+----------------------------------------------------
 
-------------------------------------------------
--- BLUR
-------------------------------------------------
+local fly = false
+local noclip = false
+local infJump = false
+local running = true
+
+local speed = 60 -- ⚡ faster base (fix demandé)
+local jump = 70
+local flySpeed = 1
+
+local gyro, vel, force, att
+local smoothVel = Vector3.zero
+
+----------------------------------------------------
+-- RESET (RESTORE PLAYER ORIGINAL STATE)
+----------------------------------------------------
+
+function resetAll()
+	fly = false
+	noclip = false
+	infJump = false
+
+	if hum then
+		hum.WalkSpeed = originalSpeed
+		hum.JumpPower = originalJump
+	end
+
+	if flyBtn then flyBtn.Text = "Fly: OFF" end
+	if noclipBtn then noclipBtn.Text = "Noclip: OFF" end
+	if infJumpBtn then infJumpBtn.Text = "Infinite Jump: OFF" end
+
+	if gyro then gyro:Destroy() gyro = nil end
+	if vel then vel:Destroy() vel = nil end
+	if force then force:Destroy() force = nil end
+	if att then att:Destroy() att = nil end
+
+	smoothVel = Vector3.zero
+end
+
+----------------------------------------------------
+-- APPLY STATS
+----------------------------------------------------
+
+local function applyStats()
+	if hum then
+		hum.UseJumpPower = true
+		hum.WalkSpeed = speed
+		hum.JumpPower = jump
+	end
+end
+
+----------------------------------------------------
+-- FLY SYSTEM (FIX GRAVITY + ORIENTATION)
+----------------------------------------------------
+local function startFly()
+
+	if not char or not hum or not root then return end
+
+	hum.AutoRotate = false
+	hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+	att = Instance.new("Attachment")
+	att.Parent = root
+
+	gyro = Instance.new("AlignOrientation")
+	gyro.Attachment0 = att
+	gyro.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	gyro.MaxTorque = math.huge
+	gyro.Responsiveness = 25
+	gyro.Parent = root
+
+	vel = Instance.new("LinearVelocity")
+	vel.Attachment0 = att
+	vel.RelativeTo = Enum.ActuatorRelativeTo.World
+	vel.MaxForce = math.huge
+	vel.Parent = root
+
+	force = Instance.new("VectorForce")
+	force.Attachment0 = att
+	force.Force = Vector3.new(0, workspace.Gravity * root.AssemblyMass, 0)
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.Parent = root
+end
+
+local function stopFly()
+
+	if hum then
+		hum.AutoRotate = true
+		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
+
+	if gyro then gyro:Destroy() gyro = nil end
+	if vel then vel:Destroy() vel = nil end
+	if force then force:Destroy() force = nil end
+	if att then att:Destroy() att = nil end
+
+	smoothVel = Vector3.zero
+end
+
+----------------------------------------------------
+-- UI
+----------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Parent = player:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+-- BLUR (cleaner)
 local blur = Instance.new("BlurEffect")
 blur.Size = 0
 blur.Parent = Lighting
 
-------------------------------------------------
--- UI
-------------------------------------------------
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "OneXHub"
+----------------------------------------------------
+-- MAIN FRAME (LESS WHITE GLOW FIX)
+----------------------------------------------------
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 560, 0, 340)
-main.Position = UDim2.new(0.5, -280, 0.5, -170)
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 300, 0, 320)
+main.Position = UDim2.new(0, 50, 0.5, -160)
 main.BackgroundColor3 = Color3.fromRGB(18,18,22)
-main.Visible = false
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
+main.BackgroundTransparency = 0.1
+main.Parent = gui
 
-local top = Instance.new("Frame", main)
-top.Size = UDim2.new(1,0,0,30)
-top.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
 
-local title = Instance.new("TextLabel", top)
-title.Size = UDim2.new(1,-60,1,0)
-title.Text = "OneOneX Hub V8"
-title.TextColor3 = Color3.new(1,1,1)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(120,120,140)
+stroke.Transparency = 0.75 -- ❌ fix glow blanc
+stroke.Thickness = 1
+stroke.Parent = main
+
+----------------------------------------------------
+-- TOP BAR
+----------------------------------------------------
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1,0,0,34)
+top.BackgroundColor3 = Color3.fromRGB(28,28,35)
+top.BackgroundTransparency = 0.2
+top.Parent = main
+
+Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,-120,1,0)
+title.Position = UDim2.new(0,10,0,0)
 title.BackgroundTransparency = 1
+title.Text = "✨ OneOneX Hub V6"
+title.TextColor3 = Color3.fromRGB(210,210,255)
+title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
 
-------------------------------------------------
--- CLOSE + MINIMIZE FIX RESET
-------------------------------------------------
-local function resetAll()
-	fly, noclip, esp, aim = false,false,false,false
-
-	speed, jump, flySpeed = 40,70,1
-
-	if hum then
-		hum.WalkSpeed = 16
-		hum.JumpPower = 50
-	end
-
-	if lv then lv:Destroy() end
-	if att then att:Destroy() end
-end
-
-local close = Instance.new("TextButton", top)
-close.Size = UDim2.new(0,30,1,0)
-close.Position = UDim2.new(1,-30,0,0)
-close.Text = "X"
-close.BackgroundColor3 = Color3.fromRGB(120,40,40)
-
-close.MouseButton1Click:Connect(function()
-	resetAll()
-	main.Visible = false
-	blur.Size = 0
-end)
-
-local mini = Instance.new("TextButton", top)
-mini.Size = UDim2.new(0,30,1,0)
-mini.Position = UDim2.new(1,-60,0,0)
-mini.Text = "-"
-mini.BackgroundColor3 = Color3.fromRGB(80,80,80)
-
-local minimized = false
-mini.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	for _,v in pairs(main:GetChildren()) do
-		if v ~= top then
-			v.Visible = not minimized
-		end
-	end
-end)
-
-------------------------------------------------
--- OPEN KEY
-------------------------------------------------
-UserInputService.InputBegan:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.RightShift then
-		main.Visible = not main.Visible
-		blur.Size = main.Visible and 18 or 0
-	end
-end)
-
-------------------------------------------------
+----------------------------------------------------
 -- DRAG
-------------------------------------------------
-local dragging, start, pos
-top.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+----------------------------------------------------
+
+local dragging = false
+local dragStart, startPos
+
+top.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
-		start = i.Position
-		pos = main.Position
+		dragStart = input.Position
+		startPos = main.Position
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = false
 	end
 end)
 
-UserInputService.InputChanged:Connect(function(i)
-	if dragging then
-		local delta = i.Position - start
-		main.Position = UDim2.new(pos.X.Scale,pos.X.Offset+delta.X,pos.Y.Scale,pos.Y.Offset+delta.Y)
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
 	end
 end)
 
-------------------------------------------------
--- UI HELPERS
-------------------------------------------------
-local function btn(text,y)
-	local b = Instance.new("TextButton", main)
-	b.Size = UDim2.new(0,240,0,28)
-	b.Position = UDim2.new(0,10,0,y)
-	b.Text = text
-	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+----------------------------------------------------
+-- BUTTON FACTORY
+----------------------------------------------------
+
+local function button(text,y,x,w)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0,w or 120,0,28)
+	b.Position = UDim2.new(0,x or 10,0,y)
+	b.BackgroundColor3 = Color3.fromRGB(40,40,50)
 	b.TextColor3 = Color3.new(1,1,1)
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 13
+	b.Text = text
+	b.Parent = main
+
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+
+	b.MouseButton1Click:Connect(function()
+		TweenService:Create(b,TweenInfo.new(0.1),{Size=UDim2.new(0,w or 120,0,26)}):Play()
+		task.wait(0.1)
+		TweenService:Create(b,TweenInfo.new(0.1),{Size=UDim2.new(0,w or 120,0,28)}):Play()
+	end)
+
 	return b
 end
 
-local function box(ph,y,x)
-	local t = Instance.new("TextBox", main)
-	t.Size = UDim2.new(0,120,0,28)
-	t.Position = UDim2.new(0,x,0,y)
-	t.PlaceholderText = ph
-	t.BackgroundColor3 = Color3.fromRGB(25,25,25)
+local function box(ph,y,x,w)
+	local t = Instance.new("TextBox")
+	t.Size = UDim2.new(0,w or 120,0,28)
+	t.Position = UDim2.new(0,x or 10,0,y)
+	t.BackgroundColor3 = Color3.fromRGB(25,25,32)
 	t.TextColor3 = Color3.new(1,1,1)
+	t.Font = Enum.Font.Gotham
+	t.TextSize = 12
+	t.ClearTextOnFocus = false
+	t.Text = ""
+	t.PlaceholderText = ph
+	t.Parent = main
+
+	Instance.new("UICorner", t).CornerRadius = UDim.new(0,8)
+
 	return t
 end
 
-------------------------------------------------
+----------------------------------------------------
 -- UI ELEMENTS
-------------------------------------------------
-local flyBtn = btn("Fly: OFF",40)
-local noclipBtn = btn("Noclip: OFF",70)
-local espBtn = btn("ESP: OFF",100)
-local aimBtn = btn("AimAssist: OFF",130)
+----------------------------------------------------
 
-local speedBox = box("Speed",170,10)
-local flySpeedBox = box("FlySpeed",170,140)
-local jumpBox = box("Jump",200,10)
+flyBtn = button("Fly: OFF",45,10,280)
+noclipBtn = button("Noclip: OFF",80,10,280)
+infJumpBtn = button("Infinite Jump: OFF",115,10,280)
 
-------------------------------------------------
--- STATS FIX (NO RESET BUG)
-------------------------------------------------
-RunService.RenderStepped:Connect(function()
-	if hum then
-		hum.WalkSpeed = speed
-		hum.UseJumpPower = true
-		hum.JumpPower = jump
+local speedBox = box("WalkSpeed (default 40)",160,10,135)
+local flySpeedBox = box("Fly Speed",160,155,135)
+local jumpBox = box("Jump Power (70)",195,10,280)
+
+----------------------------------------------------
+-- MINIMIZE (+ / - FIX)
+----------------------------------------------------
+
+local minimized = false
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0,30,0,24)
+minBtn.Position = UDim2.new(1,-70,0.5,-12)
+minBtn.Text = "-"
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 18
+minBtn.BackgroundColor3 = Color3.fromRGB(60,60,70)
+minBtn.TextColor3 = Color3.new(1,1,1)
+minBtn.Parent = top
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,6)
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,24)
+close.Position = UDim2.new(1,-35,0.5,-12)
+close.Text = "X"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 16
+close.BackgroundColor3 = Color3.fromRGB(120,50,60)
+close.TextColor3 = Color3.new(1,1,1)
+close.Parent = top
+Instance.new("UICorner", close).CornerRadius = UDim.new(0,6)
+
+minBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+
+	if minimized then
+		minBtn.Text = "+"
+	else
+		minBtn.Text = "-"
 	end
+
+	for _,v in pairs(main:GetChildren()) do
+		if v:IsA("TextButton") or v:IsA("TextBox") then
+			v.Visible = not minimized
+		end
+	end
+
+	local goal = minimized and 34 or 320
+	TweenService:Create(main,TweenInfo.new(0.25,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{
+		Size = UDim2.new(0,300,0,goal)
+	}):Play()
 end)
 
-------------------------------------------------
--- FLY PHYSICS
-------------------------------------------------
-local lv, att
+----------------------------------------------------
+-- CLOSE (RESTORE ORIGINAL PLAYER STATE)
+----------------------------------------------------
 
-local function startFly()
-	att = Instance.new("Attachment", root)
+close.MouseButton1Click:Connect(function()
+	resetAll()
 
-	lv = Instance.new("LinearVelocity")
-	lv.Attachment0 = att
-	lv.MaxForce = math.huge
-	lv.Parent = root
-end
+	TweenService:Create(blur,TweenInfo.new(0.2),{Size=0}):Play()
 
-local function stopFly()
-	if lv then lv:Destroy() end
-	if att then att:Destroy() end
-end
+	task.wait(0.15)
+	gui:Destroy()
+end)
 
-------------------------------------------------
+----------------------------------------------------
 -- BUTTONS
-------------------------------------------------
+----------------------------------------------------
+
 flyBtn.MouseButton1Click:Connect(function()
 	fly = not fly
 	flyBtn.Text = fly and "Fly: ON" or "Fly: OFF"
@@ -216,22 +348,18 @@ end)
 
 noclipBtn.MouseButton1Click:Connect(function()
 	noclip = not noclip
-	noclipBtn.Text = noclip and "ON" or "OFF"
+	noclipBtn.Text = noclip and "Noclip: ON" or "Noclip: OFF"
 end)
 
-espBtn.MouseButton1Click:Connect(function()
-	esp = not esp
-	espBtn.Text = esp and "ON" or "OFF"
+infJumpBtn.MouseButton1Click:Connect(function()
+	infJump = not infJump
+	infJumpBtn.Text = infJump and "Infinite Jump: ON" or "OFF"
 end)
 
-aimBtn.MouseButton1Click:Connect(function()
-	aim = not aim
-	aimBtn.Text = aim and "ON" or "OFF"
-end)
-
-------------------------------------------------
+----------------------------------------------------
 -- INPUTS
-------------------------------------------------
+----------------------------------------------------
+
 speedBox.FocusLost:Connect(function()
 	local v = tonumber(speedBox.Text)
 	if v then speed = math.clamp(v,10,300) end
@@ -244,14 +372,15 @@ end)
 
 flySpeedBox.FocusLost:Connect(function()
 	local v = tonumber(flySpeedBox.Text)
-	if v then flySpeed = math.clamp(v,0.2,10) end
+	if v then flySpeed = math.clamp(v,0.5,10) end
 end)
 
-------------------------------------------------
--- NOCLIP
-------------------------------------------------
+----------------------------------------------------
+-- NOCLIP + JUMP
+----------------------------------------------------
+
 RunService.Stepped:Connect(function()
-	if noclip and char then
+	if noclip then
 		for _,v in pairs(char:GetDescendants()) do
 			if v:IsA("BasePart") then
 				v.CanCollide = false
@@ -260,56 +389,37 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
-------------------------------------------------
--- CLICK TELEPORT
-------------------------------------------------
-UserInputService.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		if not main.Visible then
-			local ray = camera:ScreenPointToRay(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-			root.CFrame = CFrame.new(ray.Origin + ray.Direction * 120)
-		end
+UIS.JumpRequest:Connect(function()
+	if infJump and hum then
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 end)
 
-------------------------------------------------
--- AIM ASSIST (SMOOTH LEGIT)
-------------------------------------------------
-local function getClosest()
-	local best, dist = nil, math.huge
-	for _,p in pairs(Players:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-			local d = (p.Character.Head.Position - root.Position).Magnitude
-			if d < dist then
-				dist = d
-				best = p.Character.Head
-			end
-		end
-	end
-	return best
-end
+----------------------------------------------------
+-- MAIN LOOP (FLY FIX FINAL)
+----------------------------------------------------
 
-------------------------------------------------
--- MAIN LOOP
-------------------------------------------------
 RunService.RenderStepped:Connect(function()
-	if fly and lv then
+	applyStats()
+
+	if fly and gyro and vel and root then
+
 		local cam = camera.CFrame
+
 		local dir = Vector3.zero
+		if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
-		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+		local target = dir * (speed * flySpeed)
+		smoothVel = smoothVel:Lerp(target, 0.18)
 
-		lv.VectorVelocity = dir * (speed * flySpeed)
-	end
+		vel.VectorVelocity = smoothVel
 
-	if aim then
-		local t = getClosest()
-		if t then
-			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, t.Position)
-		end
+		-- 🔥 FULL FIX 3D ORIENTATION
+		gyro.CFrame = camera.CFrame
 	end
 end)

@@ -8,7 +8,12 @@ local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+local closed = false
 
+local selectedcategory = 0
+
+local size = UDim2.new(.35,0,.6,0)
+local pos = UDim2.new(.01,0,.2,0)
 ----------------------------------------------------
 -- CHARACTER + SAVE ORIGINAL STATS (IMPORTANT FIX)
 ----------------------------------------------------
@@ -29,6 +34,7 @@ player.CharacterAdded:Connect(function(c)
 	originalJump = hum.JumpPower
 end)
 
+
 ----------------------------------------------------
 -- STATE
 ----------------------------------------------------
@@ -38,7 +44,10 @@ local noclip = false
 local infJump = false
 local running = true
 
-local speed = 60 -- ⚡ faster base (fix demandé)
+local mobfrm = false
+local bossfrm = false
+
+local speed = originalSpeed
 local jump = 70
 local flySpeed = 1
 
@@ -49,16 +58,39 @@ local smoothVel = Vector3.zero
 -- RESET (RESTORE PLAYER ORIGINAL STATE)
 ----------------------------------------------------
 
+
 function resetAll()
+	closed = true
 	fly = false
 	noclip = false
 	infJump = false
-
+	
+	
 	if hum then
+	
 		hum.WalkSpeed = originalSpeed
 		hum.JumpPower = originalJump
+			
+		print(hum.WalkSpeed,originalSpeed)
+	end
+	for _,v in pairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = true
+		end
 	end
 
+	if hum then
+		hum.AutoRotate = true
+		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
+
+	if gyro then gyro:Destroy() gyro = nil end
+	if vel then vel:Destroy() vel = nil end
+	if force then force:Destroy() force = nil end
+	if att then att:Destroy() att = nil end
+
+	smoothVel = Vector3.zero
+	
 	if flyBtn then flyBtn.Text = "Fly: OFF" end
 	if noclipBtn then noclipBtn.Text = "Noclip: OFF" end
 	if infJumpBtn then infJumpBtn.Text = "Infinite Jump: OFF" end
@@ -148,43 +180,158 @@ blur.Parent = Lighting
 -- MAIN FRAME (LESS WHITE GLOW FIX)
 ----------------------------------------------------
 
+local maina = Instance.new("Frame")
+maina.Size = size
+maina.Position = pos
+maina.Parent = gui
+maina.BackgroundTransparency = 1
+maina.Name = "MainFrame"
+
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 300, 0, 320)
-main.Position = UDim2.new(0, 50, 0.5, -160)
+main.Size = UDim2.new(1,0,1,0)
+main.Position = UDim2.new(0,0,0,0)
+main.BackgroundTransparency = 1
+main.Parent = maina
+
 main.BackgroundColor3 = Color3.fromRGB(18,18,22)
 main.BackgroundTransparency = 0.1
-main.Parent = gui
+main.Name = "SecondaryFrame"
 
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
 
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(120,120,140)
-stroke.Transparency = 0.75 -- ❌ fix glow blanc
-stroke.Thickness = 1
-stroke.Parent = main
+local uistroke = Instance.new("UIStroke")
+uistroke.Thickness = 1.5
+uistroke.Color = Color3.fromRGB(255, 255, 255)
+uistroke.Transparency = .5
+uistroke.Parent = main
+
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(.05,0)
+
 
 ----------------------------------------------------
 -- TOP BAR
 ----------------------------------------------------
 
-local top = Instance.new("Frame")
-top.Size = UDim2.new(1,0,0,34)
-top.BackgroundColor3 = Color3.fromRGB(28,28,35)
-top.BackgroundTransparency = 0.2
-top.Parent = main
 
-Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1,0,.1,0)
+top.BackgroundColor3 = Color3.fromRGB(28,28,35)
+top.BackgroundTransparency = 1
+top.Parent = main
+top.Name = "TopBar"
+
+Instance.new("UICorner", top).CornerRadius = UDim.new(0.5,0)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,-120,1,0)
-title.Position = UDim2.new(0,10,0,0)
+title.Name = "Title"
+title.Size = UDim2.new(.4,0,.5,0)
+title.Position = UDim2.new(0.025,0,0.25,0)
 title.BackgroundTransparency = 1
-title.Text = "✨ OneOneX Hub V6"
-title.TextColor3 = Color3.fromRGB(210,210,255)
+title.Text = "✨ oneoneX Hub"
+title.TextColor3 = Color3.fromRGB(255, 161, 66)
 title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = top
+title.TextScaled = true
 
+
+
+----------------------------------------------------
+-- CATEGORIES
+----------------------------------------------------
+
+
+local category0 = Instance.new("Frame")
+category0.Name = "Info"
+category0.Parent = main
+category0.Visible = true
+category0.Size = UDim2.new(.7,0,.8,0)
+category0.Position = UDim2.new(.25,0,.15,0)
+category0.BackgroundTransparency = 1
+
+
+local category1 = Instance.new("Frame")
+category1.Name = "Universal"
+category1.Parent = main
+category1.Visible = true
+category1.Size = UDim2.new(.7,0,.8,0)
+category1.Position = UDim2.new(.25,0,.15,0)
+category1.BackgroundTransparency = 1
+
+local category2 = Instance.new("Frame")
+category2.Name = "CubeCombination"
+category2.Parent = main
+category2.Visible = true
+category2.Size = UDim2.new(.7,0,.8,0)
+category2.Position = UDim2.new(.25,0,.15,0)
+category2.BackgroundTransparency = 1
+
+----------------------------------------------------
+-- CATEGORIES BUTTONS
+----------------------------------------------------
+
+local buttons = {
+	{
+		Text = "Info",
+		Name = "InfoBut",
+		Color = Color3.fromRGB(255, 161, 66),
+		Category = 0
+	},
+	{
+		Text = "Universal",
+		Name = "UniversalBut",
+		Color = Color3.fromRGB(255, 89, 39),
+		Category = 1
+	},
+	{
+		Text = "Cube Combination",
+		Name = "CubeCombinationBut",
+		Color = Color3.fromRGB(32, 62, 255),
+		Category = 2
+	}
+}
+
+local function CreateButton(data, index)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(.25, 0, .05, 0)
+	button.Position = UDim2.new(.025, 0, .225 + ((index - 1) * .075), 0)
+	button.BackgroundTransparency = .7
+	button.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+	button.Text = data.Text
+	button.Name = data.Name
+	button.TextColor3 = data.Color
+	button.Font = Enum.Font.FredokaOne
+	button.TextScaled = true
+	button.Parent = main
+
+	local borderStroke = Instance.new("UIStroke")
+	borderStroke.Thickness = 1
+	borderStroke.Color = Color3.fromRGB(136, 136, 136)
+	borderStroke.Transparency = .5
+	borderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	borderStroke.Parent = button
+
+	local contextualStroke = Instance.new("UIStroke")
+	contextualStroke.Thickness = 1.5
+	contextualStroke.Color = Color3.fromRGB(186, 0, 0)
+	contextualStroke.Transparency = .5
+	contextualStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	contextualStroke.Parent = button
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(.2, 0)
+	corner.Parent = button
+
+	button.MouseButton1Click:Connect(function()
+		selectedcategory = data.Category
+	end)
+
+	return button
+end
+
+for i, data in ipairs(buttons) do
+	CreateButton(data, i)
+end
 ----------------------------------------------------
 -- DRAG
 ----------------------------------------------------
@@ -196,7 +343,7 @@ top.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		dragStart = input.Position
-		startPos = main.Position
+		startPos = maina.Position
 	end
 end)
 
@@ -209,7 +356,7 @@ end)
 UIS.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - dragStart
-		main.Position = UDim2.new(
+		maina.Position = UDim2.new(
 			startPos.X.Scale,
 			startPos.X.Offset + delta.X,
 			startPos.Y.Scale,
@@ -222,40 +369,53 @@ end)
 -- BUTTON FACTORY
 ----------------------------------------------------
 
-local function button(text,y,x,w)
+local function button(text,sz,pos,par,nm)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0,w or 120,0,28)
-	b.Position = UDim2.new(0,x or 10,0,y)
+	b.Size = sz
+	b.Position = pos
 	b.BackgroundColor3 = Color3.fromRGB(40,40,50)
 	b.TextColor3 = Color3.new(1,1,1)
 	b.Font = Enum.Font.Gotham
 	b.TextSize = 13
+	b.TextScaled = true
 	b.Text = text
-	b.Parent = main
-
+	b.Parent = par
+	b.Name = nm
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
 
-	b.MouseButton1Click:Connect(function()
-		TweenService:Create(b,TweenInfo.new(0.1),{Size=UDim2.new(0,w or 120,0,26)}):Play()
-		task.wait(0.1)
-		TweenService:Create(b,TweenInfo.new(0.1),{Size=UDim2.new(0,w or 120,0,28)}):Play()
-	end)
+
+	local uistroke = Instance.new("UIStroke")
+	uistroke.Thickness = 1.5
+	uistroke.Color = Color3.fromRGB(255, 255, 255)
+	uistroke.Transparency = .5
+	uistroke.Parent = b
+	uistroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 	return b
 end
 
-local function box(ph,y,x,w)
+local function box(ph,sz,pos,par,nm)
 	local t = Instance.new("TextBox")
-	t.Size = UDim2.new(0,w or 120,0,28)
-	t.Position = UDim2.new(0,x or 10,0,y)
+	t.Size = sz
+	t.Position = pos
 	t.BackgroundColor3 = Color3.fromRGB(25,25,32)
 	t.TextColor3 = Color3.new(1,1,1)
 	t.Font = Enum.Font.Gotham
 	t.TextSize = 12
+	t.TextScaled = true
 	t.ClearTextOnFocus = false
 	t.Text = ""
 	t.PlaceholderText = ph
-	t.Parent = main
+	t.Parent = par
+	t.Name = nm
+	
+
+	local uistroke = Instance.new("UIStroke")
+	uistroke.Thickness = 1.5
+	uistroke.Color = Color3.fromRGB(255, 255, 255)
+	uistroke.Transparency = .5
+	uistroke.Parent = t
+	uistroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 	Instance.new("UICorner", t).CornerRadius = UDim.new(0,8)
 
@@ -266,13 +426,30 @@ end
 -- UI ELEMENTS
 ----------------------------------------------------
 
-flyBtn = button("Fly: OFF",45,10,280)
-noclipBtn = button("Noclip: OFF",80,10,280)
-infJumpBtn = button("Infinite Jump: OFF",115,10,280)
+flyBtn = button("Fly: OFF",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0,0),category1,"FlyBut")
+noclipBtn = button("Noclip: OFF",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,.3,0),category1,"NoclipBut")
+infJumpBtn = button("Infinite Jump: OFF",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,.45,0),category1,"InfJumpBut")
+BossBtn = button("Boss Farm: OFF",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0,0),category2,"BossBut")
+MobBtn = button("Mob Farm: OFF",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0.15,0),category2,"MobBut")
 
-local speedBox = box("WalkSpeed (default 40)",160,10,135)
-local flySpeedBox = box("Fly Speed",160,155,135)
-local jumpBox = box("Jump Power (70)",195,10,280)
+local speedBox = box("WalkSpeed (default 40)",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0.6,0),category1,"SpeedBox")
+local flySpeedBox = box("Fly Speed",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0.15,0),category1,"FlySpeedBox")
+local jumpBox = box("Jump Power (70)",UDim2.new(.9,0,.1,0),UDim2.new(.05,0,0.75,0),category1,"JumpPowerBox")
+
+
+
+local cat0Text = Instance.new("TextLabel")
+cat0Text.Name = "Title"
+cat0Text.Size = UDim2.new(.9,0,.15,0)
+cat0Text.Position = UDim2.new(0.05,0,0.025,0)
+cat0Text.BackgroundTransparency = 1
+cat0Text.Text = "Welcome To oneoneX Hub"
+cat0Text.TextColor3 = Color3.fromRGB(255, 174, 74)
+cat0Text.Font = Enum.Font.GothamBold
+cat0Text.TextXAlignment = Enum.TextXAlignment.Center
+cat0Text.Parent = category0
+cat0Text.TextScaled = true
+
 
 ----------------------------------------------------
 -- MINIMIZE (+ / - FIX)
@@ -281,25 +458,27 @@ local jumpBox = box("Jump Power (70)",195,10,280)
 local minimized = false
 
 local minBtn = Instance.new("TextButton")
-minBtn.Size = UDim2.new(0,30,0,24)
-minBtn.Position = UDim2.new(1,-70,0.5,-12)
+minBtn.Size = UDim2.new(.15,0,.075,0)
+minBtn.Position = UDim2.new(.6,0,.0125,0)
 minBtn.Text = "-"
 minBtn.Font = Enum.Font.GothamBold
 minBtn.TextSize = 18
 minBtn.BackgroundColor3 = Color3.fromRGB(60,60,70)
 minBtn.TextColor3 = Color3.new(1,1,1)
-minBtn.Parent = top
+minBtn.Parent = maina
+minBtn.TextScaled = true
 Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,6)
 
 local close = Instance.new("TextButton")
-close.Size = UDim2.new(0,30,0,24)
-close.Position = UDim2.new(1,-35,0.5,-12)
+close.Size = UDim2.new(.15,0,.075,0)
+close.Position = UDim2.new(.8,0,.0125,0)
 close.Text = "X"
 close.Font = Enum.Font.GothamBold
 close.TextSize = 16
+close.TextScaled = true
 close.BackgroundColor3 = Color3.fromRGB(120,50,60)
 close.TextColor3 = Color3.new(1,1,1)
-close.Parent = top
+close.Parent = maina
 Instance.new("UICorner", close).CornerRadius = UDim.new(0,6)
 
 minBtn.MouseButton1Click:Connect(function()
@@ -317,10 +496,20 @@ minBtn.MouseButton1Click:Connect(function()
 		end
 	end
 
-	local goal = minimized and 34 or 320
+	local goal = minimized and .1 or 1
 	TweenService:Create(main,TweenInfo.new(0.25,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{
-		Size = UDim2.new(0,300,0,goal)
+		Size = UDim2.new(1,0,goal,0)
 	}):Play()
+	if minimized then
+		title.Visible = false
+		category1.Visible = false
+		category0.Visible = false
+		category2.Visible = false
+		
+	else
+		title.Visible = true
+		
+	end
 end)
 
 ----------------------------------------------------
@@ -353,7 +542,20 @@ end)
 
 infJumpBtn.MouseButton1Click:Connect(function()
 	infJump = not infJump
-	infJumpBtn.Text = infJump and "Infinite Jump: ON" or "OFF"
+	infJumpBtn.Text = infJump and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+
+BossBtn.MouseButton1Click:Connect(function()
+	bossfrm = not bossfrm
+	mobfrm = false
+	MobBtn.Text = mobfrm and "Mobs Farm: ON" or "Mobs Farm: OFF"
+	BossBtn.Text = bossfrm and "Boss Farm: ON" or "Boss Farm: OFF"
+end)
+MobBtn.MouseButton1Click:Connect(function()
+	mobfrm = not mobfrm
+	bossfrm = false
+	BossBtn.Text = bossfrm and "Boss Farm: ON" or "Boss Farm: OFF"
+	MobBtn.Text = mobfrm and "Mobs Farm: ON" or "Mobs Farm: OFF"
 end)
 
 ----------------------------------------------------
@@ -396,30 +598,239 @@ UIS.JumpRequest:Connect(function()
 end)
 
 ----------------------------------------------------
+-- AUTO FARM
+----------------------------------------------------
+
+local folder1 = game.Workspace:FindFirstChild("Entities")
+local folder2 = game.Workspace:FindFirstChild("Entities2")
+
+local function AutoFarm()
+	if bossfrm and folder1 then
+		if #folder1:GetChildren() == 0 then
+			if #folder2:GetChildren() == 0 then
+				for _,v in pairs(folder2:GetChildren()) do
+					local hrp = v:FindFirstChild("HumanoidRootPart")
+					if hrp and v:FindFirstChild("BossEntity") then
+
+
+						local targetPart = hrp
+						local plrhrp = char:FindFirstChild("HumanoidRootPart")
+						if plrhrp then
+
+							local pos = hrp.Position
+							local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
+
+							local lookAt = CFrame.lookAt(pos, targetPos)
+							plrhrp.Anchored = true
+							local tpat = hrp.Position + Vector3.new(0,-5,0)
+
+							local speed = 3
+							local radius = 1
+
+							local angle = tick() * speed
+
+							local offset = Vector3.new(
+								math.cos(angle) * radius,
+								-7,
+								math.sin(angle) * radius
+							)
+
+							local pos = hrp.Position + offset
+
+							plrhrp.CFrame = CFrame.new(pos, hrp.Position)
+
+							if char:FindFirstChildOfClass("Tool") then
+								char:FindFirstChildOfClass("Tool"):Activate()
+							end
+
+						end
+					end
+				end
+			end
+		else
+			for _,v in pairs(folder1:GetChildren()) do
+				local hrp = v:FindFirstChild("HumanoidRootPart")
+				if hrp and v:FindFirstChild("BossEntity") then
+
+
+					local targetPart = hrp
+					local plrhrp = char:FindFirstChild("HumanoidRootPart")
+					if plrhrp then
+
+						local pos = hrp.Position
+						local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
+
+						local lookAt = CFrame.lookAt(pos, targetPos)
+						plrhrp.Anchored = true
+						local tpat = hrp.Position + Vector3.new(0,-5,0)
+
+						local speed = 3
+						local radius = 1
+
+						local angle = tick() * speed
+
+						local offset = Vector3.new(
+							math.cos(angle) * radius,
+							-7,
+							math.sin(angle) * radius
+						)
+
+						local pos = hrp.Position + offset
+
+						plrhrp.CFrame = CFrame.new(pos, hrp.Position)
+
+						if char:FindFirstChildOfClass("Tool") then
+							char:FindFirstChildOfClass("Tool"):Activate()
+						end
+
+					end
+				end
+			end
+		
+		end
+	elseif mobfrm and folder1 then
+		
+		if #folder1:GetChildren() == 0 then
+			if #folder2:GetChildren() == 0 then
+				for _,v in pairs(folder2:GetChildren()) do
+					local hrp = v:FindFirstChild("HumanoidRootPart")
+					if hrp and not v:FindFirstChild("BossEntity") then
+
+
+						local targetPart = hrp
+						local plrhrp = char:FindFirstChild("HumanoidRootPart")
+						if plrhrp then
+
+							local pos = hrp.Position
+							local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
+
+							local lookAt = CFrame.lookAt(pos, targetPos)
+							plrhrp.Anchored = true
+							local tpat = hrp.Position + Vector3.new(0,-5,0)
+
+							local speed = 3
+							local radius = 1
+
+							local angle = tick() * speed
+
+							local offset = Vector3.new(
+								math.cos(angle) * radius,
+								-7,
+								math.sin(angle) * radius
+							)
+
+							local pos = hrp.Position + offset
+
+							plrhrp.CFrame = CFrame.new(pos, hrp.Position)
+
+							if char:FindFirstChildOfClass("Tool") then
+								char:FindFirstChildOfClass("Tool"):Activate()
+							end
+
+						end
+					end
+				end
+			end
+		else
+			for _,v in pairs(folder1:GetChildren()) do
+				local hrp = v:FindFirstChild("HumanoidRootPart")
+				if hrp and not v:FindFirstChild("BossEntity") then
+
+
+					local targetPart = hrp
+					local plrhrp = char:FindFirstChild("HumanoidRootPart")
+					if plrhrp then
+
+						local pos = hrp.Position
+						local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
+
+						local lookAt = CFrame.lookAt(pos, targetPos)
+						plrhrp.Anchored = true
+						local tpat = hrp.Position + Vector3.new(0,-5,0)
+
+						local speed = 3
+						local radius = 1
+
+						local angle = tick() * speed
+
+						local offset = Vector3.new(
+							math.cos(angle) * radius,
+							-7,
+							math.sin(angle) * radius
+						)
+
+						local pos = hrp.Position + offset
+
+						plrhrp.CFrame = CFrame.new(pos, hrp.Position)
+
+						if char:FindFirstChildOfClass("Tool") then
+							char:FindFirstChildOfClass("Tool"):Activate()
+						end
+
+					end
+				end
+			end
+
+		end
+	
+	else
+	
+	end
+end
+	
+
+
+
+----------------------------------------------------
 -- MAIN LOOP (FLY FIX FINAL)
 ----------------------------------------------------
 
-RunService.RenderStepped:Connect(function()
-	applyStats()
+local function load()
+	if closed == false then
+		
+		if not minimized then
+			local categories = {
+				category0,
+				category1,
+				category2
+			}
 
-	if fly and gyro and vel and root then
+			for i, category in ipairs(categories) do
+				category.Visible = (i - 1) == selectedcategory
+			end
+		end
+		AutoFarm()
+		applyStats()
 
-		local cam = camera.CFrame
+		if fly and gyro and vel and root then
 
-		local dir = Vector3.zero
-		if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
-		if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
-		if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
-		if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-		if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-		if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+			local cam = camera.CFrame
 
-		local target = dir * (speed * flySpeed)
-		smoothVel = smoothVel:Lerp(target, 0.18)
+			local dir = Vector3.zero
+			if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
+			if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
+			if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
+			if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
+			if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+			if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
-		vel.VectorVelocity = smoothVel
+			local target = dir * (speed * flySpeed)
+			smoothVel = smoothVel:Lerp(target, 0.18)
 
-		-- 🔥 FULL FIX 3D ORIENTATION
-		gyro.CFrame = camera.CFrame
+			vel.VectorVelocity = smoothVel
+
+			-- 🔥 FULL FIX 3D ORIENTATION
+			gyro.CFrame = camera.CFrame
+		end
 	end
-end)
+end
+load()
+
+while wait(.1) do 
+	load()
+	if closed then
+		wait(.2)
+		break
+	end
+end
+

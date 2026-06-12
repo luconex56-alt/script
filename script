@@ -1,4 +1,4 @@
---// ONEONEX HUB V6 | CLIENT ONLY ALL-IN-ONE
+--// ONEONEX HUB V8 | ALL-IN-ONE CLIENT DEV HUB
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,12 +9,9 @@ local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
---// BLUR
-local blur = Instance.new("BlurEffect")
-blur.Size = 0
-blur.Parent = Lighting
-
---// CHARACTER
+------------------------------------------------
+-- CHARACTER
+------------------------------------------------
 local char = player.Character or player.CharacterAdded:Wait()
 local hum = char:WaitForChild("Humanoid")
 local root = char:WaitForChild("HumanoidRootPart")
@@ -25,35 +22,60 @@ player.CharacterAdded:Connect(function(c)
 	root = c:WaitForChild("HumanoidRootPart")
 end)
 
---// STATES
-local fly, noclip, espEnabled, aimEnabled = false, false, false, false
+------------------------------------------------
+-- STATES
+------------------------------------------------
+local fly, noclip, esp, aim = false, false, false, false
 local speed, jump, flySpeed = 40, 70, 1
-
-local aimTarget = nil
+local target = nil
 
 ------------------------------------------------
--- 🎨 UI
+-- BLUR
+------------------------------------------------
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Parent = Lighting
+
+------------------------------------------------
+-- UI
 ------------------------------------------------
 local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "OneOneXHub"
+gui.Name = "OneXHub"
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 520, 0, 320)
-main.Position = UDim2.new(0.5, -260, 0.5, -160)
-main.BackgroundColor3 = Color3.fromRGB(18,18,18)
+main.Size = UDim2.new(0, 560, 0, 340)
+main.Position = UDim2.new(0.5, -280, 0.5, -170)
+main.BackgroundColor3 = Color3.fromRGB(18,18,22)
 main.Visible = false
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
 
 local top = Instance.new("Frame", main)
 top.Size = UDim2.new(1,0,0,30)
 top.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
 local title = Instance.new("TextLabel", top)
-title.Size = UDim2.new(1,-40,1,0)
-title.Text = "OneOneX Hub"
+title.Size = UDim2.new(1,-60,1,0)
+title.Text = "OneOneX Hub V8"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
+
+------------------------------------------------
+-- CLOSE + MINIMIZE FIX RESET
+------------------------------------------------
+local function resetAll()
+	fly, noclip, esp, aim = false,false,false,false
+
+	speed, jump, flySpeed = 40,70,1
+
+	if hum then
+		hum.WalkSpeed = 16
+		hum.JumpPower = 50
+	end
+
+	if lv then lv:Destroy() end
+	if att then att:Destroy() end
+end
 
 local close = Instance.new("TextButton", top)
 close.Size = UDim2.new(0,30,1,0)
@@ -62,28 +84,46 @@ close.Text = "X"
 close.BackgroundColor3 = Color3.fromRGB(120,40,40)
 
 close.MouseButton1Click:Connect(function()
+	resetAll()
 	main.Visible = false
 	blur.Size = 0
 end)
 
--- OPEN KEY
-UserInputService.InputBegan:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.RightShift then
-		main.Visible = not main.Visible
-		blur.Size = main.Visible and 20 or 0
+local mini = Instance.new("TextButton", top)
+mini.Size = UDim2.new(0,30,1,0)
+mini.Position = UDim2.new(1,-60,0,0)
+mini.Text = "-"
+mini.BackgroundColor3 = Color3.fromRGB(80,80,80)
+
+local minimized = false
+mini.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _,v in pairs(main:GetChildren()) do
+		if v ~= top then
+			v.Visible = not minimized
+		end
 	end
 end)
 
 ------------------------------------------------
--- 🖱 DRAG
+-- OPEN KEY
 ------------------------------------------------
-local dragging, dragStart, startPos
+UserInputService.InputBegan:Connect(function(i)
+	if i.KeyCode == Enum.KeyCode.RightShift then
+		main.Visible = not main.Visible
+		blur.Size = main.Visible and 18 or 0
+	end
+end)
 
+------------------------------------------------
+-- DRAG
+------------------------------------------------
+local dragging, start, pos
 top.InputBegan:Connect(function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
-		dragStart = i.Position
-		startPos = main.Position
+		start = i.Position
+		pos = main.Position
 	end
 end)
 
@@ -95,20 +135,15 @@ end)
 
 UserInputService.InputChanged:Connect(function(i)
 	if dragging then
-		local delta = i.Position - dragStart
-		main.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
+		local delta = i.Position - start
+		main.Position = UDim2.new(pos.X.Scale,pos.X.Offset+delta.X,pos.Y.Scale,pos.Y.Offset+delta.Y)
 	end
 end)
 
 ------------------------------------------------
 -- UI HELPERS
 ------------------------------------------------
-local function btn(text, y)
+local function btn(text,y)
 	local b = Instance.new("TextButton", main)
 	b.Size = UDim2.new(0,240,0,28)
 	b.Position = UDim2.new(0,10,0,y)
@@ -118,31 +153,30 @@ local function btn(text, y)
 	return b
 end
 
-local function box(text, y, x)
+local function box(ph,y,x)
 	local t = Instance.new("TextBox", main)
 	t.Size = UDim2.new(0,120,0,28)
 	t.Position = UDim2.new(0,x,0,y)
-	t.PlaceholderText = text
-	t.Text = ""
+	t.PlaceholderText = ph
 	t.BackgroundColor3 = Color3.fromRGB(25,25,25)
 	t.TextColor3 = Color3.new(1,1,1)
 	return t
 end
 
 ------------------------------------------------
--- BUTTONS
+-- UI ELEMENTS
 ------------------------------------------------
-local flyBtn = btn("Fly: OFF", 40)
-local noclipBtn = btn("Noclip: OFF", 70)
-local espBtn = btn("ESP: OFF", 100)
-local aimBtn = btn("Aimbot: OFF", 130)
+local flyBtn = btn("Fly: OFF",40)
+local noclipBtn = btn("Noclip: OFF",70)
+local espBtn = btn("ESP: OFF",100)
+local aimBtn = btn("AimAssist: OFF",130)
 
-local speedBox = box("Speed", 170, 10)
-local flySpeedBox = box("FlySpeed", 170, 140)
-local jumpBox = box("Jump", 200, 10)
+local speedBox = box("Speed",170,10)
+local flySpeedBox = box("FlySpeed",170,140)
+local jumpBox = box("Jump",200,10)
 
 ------------------------------------------------
--- FIX STATS (ANTI RESET)
+-- STATS FIX (NO RESET BUG)
 ------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	if hum then
@@ -153,7 +187,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
--- FLY (FULL CAMERA ROTATION FIX)
+-- FLY PHYSICS
 ------------------------------------------------
 local lv, att
 
@@ -172,7 +206,7 @@ local function stopFly()
 end
 
 ------------------------------------------------
--- BUTTONS LOGIC
+-- BUTTONS
 ------------------------------------------------
 flyBtn.MouseButton1Click:Connect(function()
 	fly = not fly
@@ -182,35 +216,35 @@ end)
 
 noclipBtn.MouseButton1Click:Connect(function()
 	noclip = not noclip
-	noclipBtn.Text = noclip and "Noclip: ON" or "OFF"
+	noclipBtn.Text = noclip and "ON" or "OFF"
 end)
 
 espBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	espBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+	esp = not esp
+	espBtn.Text = esp and "ON" or "OFF"
 end)
 
 aimBtn.MouseButton1Click:Connect(function()
-	aimEnabled = not aimEnabled
-	aimBtn.Text = aimEnabled and "Aimbot: ON" or "OFF"
+	aim = not aim
+	aimBtn.Text = aim and "ON" or "OFF"
 end)
 
 ------------------------------------------------
--- INPUT VALUES
+-- INPUTS
 ------------------------------------------------
 speedBox.FocusLost:Connect(function()
 	local v = tonumber(speedBox.Text)
-	if v then speed = math.clamp(v, 10, 300) end
+	if v then speed = math.clamp(v,10,300) end
 end)
 
 jumpBox.FocusLost:Connect(function()
 	local v = tonumber(jumpBox.Text)
-	if v then jump = math.clamp(v, 20, 300) end
+	if v then jump = math.clamp(v,20,300) end
 end)
 
 flySpeedBox.FocusLost:Connect(function()
 	local v = tonumber(flySpeedBox.Text)
-	if v then flySpeed = math.clamp(v, 0.2, 10) end
+	if v then flySpeed = math.clamp(v,0.2,10) end
 end)
 
 ------------------------------------------------
@@ -233,64 +267,30 @@ UserInputService.InputBegan:Connect(function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 then
 		if not main.Visible then
 			local ray = camera:ScreenPointToRay(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-			local pos = ray.Origin + ray.Direction * 150
-			root.CFrame = CFrame.new(pos)
+			root.CFrame = CFrame.new(ray.Origin + ray.Direction * 120)
 		end
 	end
 end)
 
 ------------------------------------------------
--- AIMBOT (CLOSEST PLAYER)
+-- AIM ASSIST (SMOOTH LEGIT)
 ------------------------------------------------
 local function getClosest()
-	local closest, dist = nil, math.huge
+	local best, dist = nil, math.huge
 	for _,p in pairs(Players:GetPlayers()) do
 		if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
 			local d = (p.Character.Head.Position - root.Position).Magnitude
 			if d < dist then
 				dist = d
-				closest = p.Character.Head
+				best = p.Character.Head
 			end
 		end
 	end
-	return closest
+	return best
 end
 
 ------------------------------------------------
--- ESP SIMPLE
-------------------------------------------------
-local espBoxes = {}
-
-local function createESP(plr)
-	if plr == player then return end
-
-	local box = Drawing.new("Square")
-	box.Color = Color3.fromRGB(255,0,0)
-	box.Thickness = 1
-
-	RunService.RenderStepped:Connect(function()
-		local c = plr.Character
-		if not c or not c:FindFirstChild("HumanoidRootPart") then
-			box.Visible = false
-			return
-		end
-
-		local pos, vis = camera:WorldToViewportPoint(c.HumanoidRootPart.Position)
-		if vis then
-			box.Visible = true
-			box.Position = Vector2.new(pos.X,pos.Y)
-			box.Size = Vector2.new(40,60)
-		else
-			box.Visible = false
-		end
-	end)
-end
-
-for _,p in pairs(Players:GetPlayers()) do createESP(p) end
-Players.PlayerAdded:Connect(createESP)
-
-------------------------------------------------
--- MAIN LOOP (FLY FIXED FULL ROTATION)
+-- MAIN LOOP
 ------------------------------------------------
 RunService.RenderStepped:Connect(function()
 	if fly and lv then
@@ -302,12 +302,11 @@ RunService.RenderStepped:Connect(function()
 		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
 		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
 		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
 		lv.VectorVelocity = dir * (speed * flySpeed)
 	end
 
-	if aimEnabled then
+	if aim then
 		local t = getClosest()
 		if t then
 			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, t.Position)

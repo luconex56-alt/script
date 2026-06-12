@@ -1,4 +1,4 @@
---// OneOneX Hub V3 | PRO VERSION
+--// OneOneX Hub V4 | FULL FIX
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -27,7 +27,7 @@ local speed = 40
 local jump = 70
 local flySpeed = 1
 
---// FIX STATS (ANTI RESET)
+--// FORCE STATS (ANTI RESET FIX)
 local function applyStats()
 	if humanoid then
 		humanoid.UseJumpPower = true
@@ -36,16 +36,16 @@ local function applyStats()
 	end
 end
 
---// UI
+--// GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "OneOneXHub"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 260, 0, 300)
-main.Position = UDim2.new(0, 30, 0.5, -150)
-main.BackgroundColor3 = Color3.fromRGB(18,18,18)
+main.Size = UDim2.new(0, 280, 0, 310)
+main.Position = UDim2.new(0, 30, 0.5, -155)
+main.BackgroundColor3 = Color3.fromRGB(15,15,15)
 main.Parent = gui
 main.Active = true
 main.Draggable = true
@@ -54,8 +54,9 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = main
 
+-- TOP BAR
 local top = Instance.new("Frame")
-top.Size = UDim2.new(1,0,0,30)
+top.Size = UDim2.new(1,0,0,32)
 top.BackgroundColor3 = Color3.fromRGB(30,30,30)
 top.Parent = main
 
@@ -73,8 +74,8 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = top
 
 local close = Instance.new("TextButton")
-close.Size = UDim2.new(0,30,1,0)
-close.Position = UDim2.new(1,-30,0,0)
+close.Size = UDim2.new(0,32,1,0)
+close.Position = UDim2.new(1,-32,0,0)
 close.Text = "X"
 close.TextColor3 = Color3.new(1,1,1)
 close.BackgroundColor3 = Color3.fromRGB(120,40,40)
@@ -84,11 +85,11 @@ close.MouseButton1Click:Connect(function()
 	gui.Enabled = not gui.Enabled
 end)
 
---// BUTTON FACTORY
-local function button(text, y)
+-- UI FACTORY
+local function button(text, y, x, w)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1,-20,0,28)
-	b.Position = UDim2.new(0,10,0,y)
+	b.Size = UDim2.new(0,w or 120,0,28)
+	b.Position = UDim2.new(0,x or 10,0,y)
 	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
 	b.TextColor3 = Color3.fromRGB(255,255,255)
 	b.Text = text
@@ -101,14 +102,13 @@ local function button(text, y)
 	return b
 end
 
---// INPUT FACTORY
-local function box(text, y)
+local function box(placeholder, y, x, w)
 	local t = Instance.new("TextBox")
-	t.Size = UDim2.new(1,-20,0,28)
-	t.Position = UDim2.new(0,10,0,y)
-	t.BackgroundColor3 = Color3.fromRGB(28,28,28)
+	t.Size = UDim2.new(0,w or 120,0,28)
+	t.Position = UDim2.new(0,x or 10,0,y)
+	t.BackgroundColor3 = Color3.fromRGB(25,25,25)
 	t.TextColor3 = Color3.fromRGB(255,255,255)
-	t.PlaceholderText = text
+	t.PlaceholderText = placeholder
 	t.Text = ""
 	t.Parent = main
 
@@ -119,16 +119,19 @@ local function box(text, y)
 	return t
 end
 
---// UI ELEMENTS
-local flyBtn = button("Fly: OFF", 40)
-local noclipBtn = button("Noclip: OFF", 75)
-local infJumpBtn = button("Infinite Jump: OFF", 110)
+--// ROW 1
+local flyBtn = button("Fly: OFF", 40, 10, 260)
+local noclipBtn = button("Noclip: OFF", 75, 10, 260)
+local infJumpBtn = button("Infinite Jump: OFF", 110, 10, 260)
 
-local speedBox = box("WalkSpeed (Enter)", 150)
-local jumpBox = box("JumpPower (Enter)", 185)
-local flySpeedBox = box("Fly Speed (Enter)", 220)
+--// ROW 2 (IMPORTANT: SPEED + FLY SPEED SIDE BY SIDE)
+local speedBox = box("Speed", 150, 10, 125)
+local flySpeedBox = box("Fly Speed", 150, 145, 125)
 
---// FLY SYSTEM (FULL 3D FIXED ROTATION)
+--// ROW 3 (JUMP)
+local jumpBox = box("Jump Power", 185, 10, 260)
+
+--// FLY SYSTEM (FIXED FULL ROTATION)
 local gyro, vel
 
 local function startFly()
@@ -164,7 +167,7 @@ infJumpBtn.MouseButton1Click:Connect(function()
 	infJumpBtn.Text = infJump and "Infinite Jump: ON" or "OFF"
 end)
 
---// INPUTS FIX
+--// INPUTS FIXED
 speedBox.FocusLost:Connect(function()
 	local v = tonumber(speedBox.Text)
 	if v then speed = math.clamp(v, 10, 300) end
@@ -191,7 +194,7 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
---// INFINITE JUMP FIX
+--// INFINITE JUMP
 UserInputService.JumpRequest:Connect(function()
 	if infJump and humanoid then
 		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -216,7 +219,11 @@ RunService.RenderStepped:Connect(function()
 
 		vel.Velocity = dir * (speed * flySpeed)
 
-		-- 🔥 FIX FULL ROTATION (haut/bas + gauche/droite)
-		gyro.CFrame = CFrame.lookAt(root.Position, root.Position + cam.LookVector, Vector3.new(0,1,0))
+		-- 🔥 FULL 3D ROTATION FIX (LOOK UP / DOWN / SIDE / ALL)
+		gyro.CFrame = CFrame.lookAt(
+			root.Position,
+			root.Position + cam.LookVector,
+			Vector3.new(0,1,0)
+		)
 	end
 end)

@@ -601,15 +601,38 @@ end)
 -- AUTO FARM
 ----------------------------------------------------
 
-
-local folder1 = game.Workspace:FindFirstChild("Entities")
-local folder2 = game.Workspace:FindFirstChild("Entities2")
+local folder1 = workspace:FindFirstChild("Entities")
+local folder2 = workspace:FindFirstChild("Entities2")
 
 local function SetNoClip(character, enabled)
 	for _, obj in ipairs(character:GetDescendants()) do
 		if obj:IsA("BasePart") then
 			obj.CanCollide = not enabled
 		end
+	end
+end
+
+local function FreezeCharacter(character, freeze)
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+
+	if humanoid then
+		if freeze then
+			humanoid.WalkSpeed = 0
+			humanoid.JumpPower = 0
+			humanoid.AutoRotate = false
+			humanoid.PlatformStand = true
+		else
+			humanoid.WalkSpeed = 16
+			humanoid.JumpPower = 50
+			humanoid.AutoRotate = true
+			humanoid.PlatformStand = false
+		end
+	end
+
+	if hrp then
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
 	end
 end
 
@@ -623,6 +646,9 @@ local function AttackTarget(target)
 	if not plrhrp then
 		return
 	end
+
+	plrhrp.AssemblyLinearVelocity = Vector3.zero
+	plrhrp.AssemblyAngularVelocity = Vector3.zero
 
 	local angle = tick() * 3
 	local offset = Vector3.new(
@@ -645,9 +671,7 @@ end
 local function GetTargets(isBoss)
 	local targets = {}
 
-	local folders = {folder1, folder2}
-
-	for _, folder in ipairs(folders) do
+	for _, folder in ipairs({folder1, folder2}) do
 		if folder then
 			for _, entity in ipairs(folder:GetChildren()) do
 				local boss = entity:FindFirstChild("BossEntity") ~= nil
@@ -666,6 +690,7 @@ local function AutoFarm()
 	if bossfrm or mobfrm then
 		if char then
 			SetNoClip(char, true)
+			FreezeCharacter(char, true)
 		end
 
 		local targets = GetTargets(bossfrm)
@@ -676,6 +701,7 @@ local function AutoFarm()
 	else
 		if char then
 			SetNoClip(char, false)
+			FreezeCharacter(char, false)
 		end
 	end
 end

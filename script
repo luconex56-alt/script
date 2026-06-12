@@ -1,4 +1,4 @@
---// OneOneX Hub | Created by OneOneX
+--// OneOneX Hub V2 | Created by OneOneX
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +7,7 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
---// Character refs
+--// CHARACTER
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local root = character:WaitForChild("HumanoidRootPart")
@@ -21,15 +21,15 @@ end)
 --// STATES
 local fly = false
 local noclip = false
-local shiftlock = false
 
-local speed = 16
-local jump = 50
+local speed = 40
+local jump = 70
 
---// APPLY STATS
+--// APPLY STATS (FIX JUMP)
 local function applyStats()
 	if humanoid then
 		humanoid.WalkSpeed = speed
+		humanoid.UseJumpPower = true
 		humanoid.JumpPower = jump
 	end
 end
@@ -37,13 +37,16 @@ end
 --// GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "OneOneXHub"
+gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 220, 0, 260)
-main.Position = UDim2.new(0, 20, 0.5, -130)
+main.Size = UDim2.new(0, 240, 0, 240)
+main.Position = UDim2.new(0, 30, 0.5, -120)
 main.BackgroundColor3 = Color3.fromRGB(20,20,20)
 main.Parent = gui
+main.Active = true
+main.Draggable = true
 
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,30)
@@ -52,10 +55,23 @@ title.Text = "OneOneX Hub"
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Parent = main
 
---// Button creator
+-- CLOSE BUTTON
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0,30,0,30)
+close.Position = UDim2.new(1,-30,0,0)
+close.Text = "X"
+close.TextColor3 = Color3.new(1,1,1)
+close.BackgroundColor3 = Color3.fromRGB(120,40,40)
+close.Parent = main
+
+close.MouseButton1Click:Connect(function()
+	gui.Enabled = not gui.Enabled
+end)
+
+-- BUTTON CREATOR
 local function button(text, y)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1,-10,0,30)
+	b.Size = UDim2.new(1,-10,0,28)
 	b.Position = UDim2.new(0,5,0,y)
 	b.BackgroundColor3 = Color3.fromRGB(45,45,45)
 	b.TextColor3 = Color3.fromRGB(255,255,255)
@@ -64,15 +80,26 @@ local function button(text, y)
 	return b
 end
 
-local flyBtn = button("Fly: OFF", 40)
-local noclipBtn = button("Noclip: OFF", 75)
-local camBtn = button("ShiftCam: OFF", 110)
-local resetBtn = button("Reset Character", 145)
+local function textbox(placeholder, y)
+	local t = Instance.new("TextBox")
+	t.Size = UDim2.new(1,-10,0,28)
+	t.Position = UDim2.new(0,5,0,y)
+	t.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	t.TextColor3 = Color3.fromRGB(255,255,255)
+	t.PlaceholderText = placeholder
+	t.Text = ""
+	t.Parent = main
+	return t
+end
 
-local speedBtn = button("Speed: 16", 180)
-local jumpBtn = button("Jump: 50", 215)
+-- UI ELEMENTS
+local flyBtn = button("Fly: OFF", 35)
+local noclipBtn = button("Noclip: OFF", 65)
 
---// FLY SYSTEM
+local speedBox = textbox("Set Speed (Enter)", 95)
+local jumpBox = textbox("Set Jump (Enter)", 125)
+
+--// FLY SYSTEM (CAMERA ORIENTED)
 local gyro, vel
 
 local function startFly()
@@ -91,18 +118,7 @@ local function stopFly()
 	if vel then vel:Destroy() end
 end
 
---// SHIFTLOCK CAMERA (custom)
-local function updateCamera()
-	if shiftlock and character and root then
-		local offset = Vector3.new(2, 2, 6)
-		camera.CameraType = Enum.CameraType.Scriptable
-		camera.CFrame = CFrame.new(root.Position + offset, root.Position)
-	else
-		camera.CameraType = Enum.CameraType.Custom
-	end
-end
-
---// BUTTONS
+-- BUTTONS
 flyBtn.MouseButton1Click:Connect(function()
 	fly = not fly
 	flyBtn.Text = fly and "Fly: ON" or "Fly: OFF"
@@ -115,32 +131,27 @@ noclipBtn.MouseButton1Click:Connect(function()
 	noclipBtn.Text = noclip and "Noclip: ON" or "Noclip: OFF"
 end)
 
-camBtn.MouseButton1Click:Connect(function()
-	shiftlock = not shiftlock
-	camBtn.Text = shiftlock and "ShiftCam: ON" or "ShiftCam: OFF"
-end)
-
-resetBtn.MouseButton1Click:Connect(function()
-	if character then
-		character:BreakJoints()
+-- SPEED INPUT
+speedBox.FocusLost:Connect(function()
+	local v = tonumber(speedBox.Text)
+	if v then
+		speed = math.clamp(v, 10, 200)
 	end
 end)
 
-speedBtn.MouseButton1Click:Connect(function()
-	speed += 8
-	if speed > 64 then speed = 16 end
-	speedBtn.Text = "Speed: "..speed
-	applyStats()
+-- JUMP INPUT (FIX)
+jumpBox.FocusLost:Connect(function()
+	local v = tonumber(jumpBox.Text)
+	if v then
+		jump = math.clamp(v, 20, 200)
+		if humanoid then
+			humanoid.UseJumpPower = true
+			humanoid.JumpPower = jump
+		end
+	end
 end)
 
-jumpBtn.MouseButton1Click:Connect(function()
-	jump += 25
-	if jump > 150 then jump = 50 end
-	jumpBtn.Text = "Jump: "..jump
-	applyStats()
-end)
-
---// LOOPS
+-- NOCLIP
 RunService.Stepped:Connect(function()
 	if noclip and character then
 		for _,v in pairs(character:GetDescendants()) do
@@ -151,11 +162,11 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
+-- MAIN LOOP
 RunService.RenderStepped:Connect(function()
 	applyStats()
-	updateCamera()
 
-	if fly and vel and gyro then
+	if fly and vel and gyro and root then
 		local dir = Vector3.zero
 		local camCF = camera.CFrame
 
@@ -167,6 +178,8 @@ RunService.RenderStepped:Connect(function()
 		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
 		vel.Velocity = dir * speed
-		gyro.CFrame = camCF
+
+		-- 🔥 ORIENTATION FIX (look where camera looks)
+		gyro.CFrame = CFrame.new(root.Position, root.Position + camCF.LookVector)
 	end
 end)

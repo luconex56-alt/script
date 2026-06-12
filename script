@@ -1,4 +1,4 @@
---// OneOneX Hub V2 | Created by OneOneX
+--// OneOneX Hub V3 | PRO VERSION
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -21,85 +21,114 @@ end)
 --// STATES
 local fly = false
 local noclip = false
+local infJump = false
 
 local speed = 40
 local jump = 70
+local flySpeed = 1
 
---// APPLY STATS (FIX JUMP)
+--// FIX STATS (ANTI RESET)
 local function applyStats()
 	if humanoid then
-		humanoid.WalkSpeed = speed
 		humanoid.UseJumpPower = true
+		humanoid.WalkSpeed = speed
 		humanoid.JumpPower = jump
 	end
 end
 
---// GUI
+--// UI
 local gui = Instance.new("ScreenGui")
 gui.Name = "OneOneXHub"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 240, 0, 240)
-main.Position = UDim2.new(0, 30, 0.5, -120)
-main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.Size = UDim2.new(0, 260, 0, 300)
+main.Position = UDim2.new(0, 30, 0.5, -150)
+main.BackgroundColor3 = Color3.fromRGB(18,18,18)
 main.Parent = gui
 main.Active = true
 main.Draggable = true
 
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = main
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1,0,0,30)
+top.BackgroundColor3 = Color3.fromRGB(30,30,30)
+top.Parent = main
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0,10)
+topCorner.Parent = top
+
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1,0,0,30)
-title.BackgroundColor3 = Color3.fromRGB(35,35,35)
+title.Size = UDim2.new(1,-40,1,0)
+title.Position = UDim2.new(0,10,0,0)
+title.BackgroundTransparency = 1
 title.Text = "OneOneX Hub"
 title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Parent = main
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
 
--- CLOSE BUTTON
 local close = Instance.new("TextButton")
-close.Size = UDim2.new(0,30,0,30)
+close.Size = UDim2.new(0,30,1,0)
 close.Position = UDim2.new(1,-30,0,0)
 close.Text = "X"
 close.TextColor3 = Color3.new(1,1,1)
 close.BackgroundColor3 = Color3.fromRGB(120,40,40)
-close.Parent = main
+close.Parent = top
 
 close.MouseButton1Click:Connect(function()
 	gui.Enabled = not gui.Enabled
 end)
 
--- BUTTON CREATOR
+--// BUTTON FACTORY
 local function button(text, y)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(1,-10,0,28)
-	b.Position = UDim2.new(0,5,0,y)
-	b.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	b.Size = UDim2.new(1,-20,0,28)
+	b.Position = UDim2.new(0,10,0,y)
+	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
 	b.TextColor3 = Color3.fromRGB(255,255,255)
 	b.Text = text
 	b.Parent = main
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0,6)
+	c.Parent = b
+
 	return b
 end
 
-local function textbox(placeholder, y)
+--// INPUT FACTORY
+local function box(text, y)
 	local t = Instance.new("TextBox")
-	t.Size = UDim2.new(1,-10,0,28)
-	t.Position = UDim2.new(0,5,0,y)
-	t.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	t.Size = UDim2.new(1,-20,0,28)
+	t.Position = UDim2.new(0,10,0,y)
+	t.BackgroundColor3 = Color3.fromRGB(28,28,28)
 	t.TextColor3 = Color3.fromRGB(255,255,255)
-	t.PlaceholderText = placeholder
+	t.PlaceholderText = text
 	t.Text = ""
 	t.Parent = main
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0,6)
+	c.Parent = t
+
 	return t
 end
 
--- UI ELEMENTS
-local flyBtn = button("Fly: OFF", 35)
-local noclipBtn = button("Noclip: OFF", 65)
+--// UI ELEMENTS
+local flyBtn = button("Fly: OFF", 40)
+local noclipBtn = button("Noclip: OFF", 75)
+local infJumpBtn = button("Infinite Jump: OFF", 110)
 
-local speedBox = textbox("Set Speed (Enter)", 95)
-local jumpBox = textbox("Set Jump (Enter)", 125)
+local speedBox = box("WalkSpeed (Enter)", 150)
+local jumpBox = box("JumpPower (Enter)", 185)
+local flySpeedBox = box("Fly Speed (Enter)", 220)
 
---// FLY SYSTEM (CAMERA ORIENTED)
+--// FLY SYSTEM (FULL 3D FIXED ROTATION)
 local gyro, vel
 
 local function startFly()
@@ -118,11 +147,10 @@ local function stopFly()
 	if vel then vel:Destroy() end
 end
 
--- BUTTONS
+--// BUTTONS
 flyBtn.MouseButton1Click:Connect(function()
 	fly = not fly
 	flyBtn.Text = fly and "Fly: ON" or "Fly: OFF"
-
 	if fly then startFly() else stopFly() end
 end)
 
@@ -131,27 +159,28 @@ noclipBtn.MouseButton1Click:Connect(function()
 	noclipBtn.Text = noclip and "Noclip: ON" or "Noclip: OFF"
 end)
 
--- SPEED INPUT
+infJumpBtn.MouseButton1Click:Connect(function()
+	infJump = not infJump
+	infJumpBtn.Text = infJump and "Infinite Jump: ON" or "OFF"
+end)
+
+--// INPUTS FIX
 speedBox.FocusLost:Connect(function()
 	local v = tonumber(speedBox.Text)
-	if v then
-		speed = math.clamp(v, 10, 200)
-	end
+	if v then speed = math.clamp(v, 10, 300) end
 end)
 
--- JUMP INPUT (FIX)
 jumpBox.FocusLost:Connect(function()
 	local v = tonumber(jumpBox.Text)
-	if v then
-		jump = math.clamp(v, 20, 200)
-		if humanoid then
-			humanoid.UseJumpPower = true
-			humanoid.JumpPower = jump
-		end
-	end
+	if v then jump = math.clamp(v, 20, 300) end
 end)
 
--- NOCLIP
+flySpeedBox.FocusLost:Connect(function()
+	local v = tonumber(flySpeedBox.Text)
+	if v then flySpeed = math.clamp(v, 0.5, 10) end
+end)
+
+--// NOCLIP
 RunService.Stepped:Connect(function()
 	if noclip and character then
 		for _,v in pairs(character:GetDescendants()) do
@@ -162,24 +191,32 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- MAIN LOOP
+--// INFINITE JUMP FIX
+UserInputService.JumpRequest:Connect(function()
+	if infJump and humanoid then
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
+--// MAIN LOOP
 RunService.RenderStepped:Connect(function()
 	applyStats()
 
-	if fly and vel and gyro and root then
-		local dir = Vector3.zero
-		local camCF = camera.CFrame
+	if fly and gyro and vel and root then
+		local cam = camera.CFrame
 
-		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += camCF.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= camCF.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= camCF.RightVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += camCF.RightVector end
+		local dir = Vector3.zero
+
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
 		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
 		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
-		vel.Velocity = dir * speed
+		vel.Velocity = dir * (speed * flySpeed)
 
-		-- 🔥 ORIENTATION FIX (look where camera looks)
-		gyro.CFrame = CFrame.new(root.Position, root.Position + camCF.LookVector)
+		-- 🔥 FIX FULL ROTATION (haut/bas + gauche/droite)
+		gyro.CFrame = CFrame.lookAt(root.Position, root.Position + cam.LookVector, Vector3.new(0,1,0))
 	end
 end)

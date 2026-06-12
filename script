@@ -601,185 +601,84 @@ end)
 -- AUTO FARM
 ----------------------------------------------------
 
+
 local folder1 = game.Workspace:FindFirstChild("Entities")
 local folder2 = game.Workspace:FindFirstChild("Entities2")
 
-local function AutoFarm()
-	if bossfrm and folder1 then
-		if #folder1:GetChildren() == 0 then
-			if #folder2:GetChildren() == 0 then
-				for _,v in pairs(folder2:GetChildren()) do
-					local hrp = v:FindFirstChild("HumanoidRootPart")
-					if hrp and v:FindFirstChild("BossEntity") then
-
-
-						local targetPart = hrp
-						local plrhrp = char:FindFirstChild("HumanoidRootPart")
-						if plrhrp then
-
-							local pos = hrp.Position
-							local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
-
-							local lookAt = CFrame.lookAt(pos, targetPos)
-							plrhrp.Anchored = true
-							local tpat = hrp.Position + Vector3.new(0,-5,0)
-
-							local speed = 3
-							local radius = 1
-
-							local angle = tick() * speed
-
-							local offset = Vector3.new(
-								math.cos(angle) * radius,
-								-7,
-								math.sin(angle) * radius
-							)
-
-							local pos = hrp.Position + offset
-
-							plrhrp.CFrame = CFrame.new(pos, hrp.Position)
-
-							if char:FindFirstChildOfClass("Tool") then
-								char:FindFirstChildOfClass("Tool"):Activate()
-							end
-
-						end
-					end
-				end
-			end
-		else
-			for _,v in pairs(folder1:GetChildren()) do
-				local hrp = v:FindFirstChild("HumanoidRootPart")
-				if hrp and v:FindFirstChild("BossEntity") then
-
-
-					local targetPart = hrp
-					local plrhrp = char:FindFirstChild("HumanoidRootPart")
-					if plrhrp then
-
-						local pos = hrp.Position
-						local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
-
-						local lookAt = CFrame.lookAt(pos, targetPos)
-						plrhrp.Anchored = true
-						local tpat = hrp.Position + Vector3.new(0,-5,0)
-
-						local speed = 3
-						local radius = 1
-
-						local angle = tick() * speed
-
-						local offset = Vector3.new(
-							math.cos(angle) * radius,
-							-7,
-							math.sin(angle) * radius
-						)
-
-						local pos = hrp.Position + offset
-
-						plrhrp.CFrame = CFrame.new(pos, hrp.Position)
-
-						if char:FindFirstChildOfClass("Tool") then
-							char:FindFirstChildOfClass("Tool"):Activate()
-						end
-
-					end
-				end
-			end
-		
+local function SetNoClip(character, enabled)
+	for _, obj in ipairs(character:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			obj.CanCollide = not enabled
 		end
-	elseif mobfrm and folder1 then
-		
-		if #folder1:GetChildren() == 0 then
-			if #folder2:GetChildren() == 0 then
-				for _,v in pairs(folder2:GetChildren()) do
-					local hrp = v:FindFirstChild("HumanoidRootPart")
-					if hrp and not v:FindFirstChild("BossEntity") then
-
-
-						local targetPart = hrp
-						local plrhrp = char:FindFirstChild("HumanoidRootPart")
-						if plrhrp then
-
-							local pos = hrp.Position
-							local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
-
-							local lookAt = CFrame.lookAt(pos, targetPos)
-							plrhrp.Anchored = true
-							local tpat = hrp.Position + Vector3.new(0,-5,0)
-
-							local speed = 3
-							local radius = 1
-
-							local angle = tick() * speed
-
-							local offset = Vector3.new(
-								math.cos(angle) * radius,
-								-7,
-								math.sin(angle) * radius
-							)
-
-							local pos = hrp.Position + offset
-
-							plrhrp.CFrame = CFrame.new(pos, hrp.Position)
-
-							if char:FindFirstChildOfClass("Tool") then
-								char:FindFirstChildOfClass("Tool"):Activate()
-							end
-
-						end
-					end
-				end
-			end
-		else
-			for _,v in pairs(folder1:GetChildren()) do
-				local hrp = v:FindFirstChild("HumanoidRootPart")
-				if hrp and not v:FindFirstChild("BossEntity") then
-
-
-					local targetPart = hrp
-					local plrhrp = char:FindFirstChild("HumanoidRootPart")
-					if plrhrp then
-
-						local pos = hrp.Position
-						local targetPos = Vector3.new(targetPart.Position.X, pos.Y, targetPart.Position.Z)
-
-						local lookAt = CFrame.lookAt(pos, targetPos)
-						plrhrp.Anchored = true
-						local tpat = hrp.Position + Vector3.new(0,-5,0)
-
-						local speed = 3
-						local radius = 1
-
-						local angle = tick() * speed
-
-						local offset = Vector3.new(
-							math.cos(angle) * radius,
-							-7,
-							math.sin(angle) * radius
-						)
-
-						local pos = hrp.Position + offset
-
-						plrhrp.CFrame = CFrame.new(pos, hrp.Position)
-
-						if char:FindFirstChildOfClass("Tool") then
-							char:FindFirstChildOfClass("Tool"):Activate()
-						end
-
-					end
-				end
-			end
-
-		end
-	
-	else
-	
 	end
 end
-	
 
+local function AttackTarget(target)
+	local hrp = target:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return
+	end
 
+	local plrhrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not plrhrp then
+		return
+	end
+
+	local angle = tick() * 3
+	local offset = Vector3.new(
+		math.cos(angle),
+		-7,
+		math.sin(angle)
+	)
+
+	plrhrp.CFrame = CFrame.new(
+		hrp.Position + offset,
+		hrp.Position
+	)
+
+	local tool = char:FindFirstChildOfClass("Tool")
+	if tool then
+		tool:Activate()
+	end
+end
+
+local function GetTargets(isBoss)
+	local targets = {}
+
+	local folders = {folder1, folder2}
+
+	for _, folder in ipairs(folders) do
+		if folder then
+			for _, entity in ipairs(folder:GetChildren()) do
+				local boss = entity:FindFirstChild("BossEntity") ~= nil
+
+				if boss == isBoss then
+					table.insert(targets, entity)
+				end
+			end
+		end
+	end
+
+	return targets
+end
+
+local function AutoFarm()
+	if bossfrm or mobfrm then
+		if char then
+			SetNoClip(char, true)
+		end
+
+		local targets = GetTargets(bossfrm)
+
+		for _, target in ipairs(targets) do
+			AttackTarget(target)
+		end
+	else
+		if char then
+			SetNoClip(char, false)
+		end
+	end
+end
 
 ----------------------------------------------------
 -- MAIN LOOP (FLY FIX FINAL)

@@ -1,94 +1,113 @@
---// Services
+--// OneOneX Hub | Created by OneOneX
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+--// Character refs
 local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
 
 player.CharacterAdded:Connect(function(char)
 	character = char
-	humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
 end)
 
 --// STATES
-local flying = false
+local fly = false
 local noclip = false
-local speed = 50
+local shiftlock = false
 
---// GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FlyNoclipGui"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local speed = 16
+local jump = 50
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 180, 0, 120)
-frame.Position = UDim2.new(0, 20, 0.5, -60)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.Parent = screenGui
-
-local function createButton(text, posY)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -10, 0, 50)
-	btn.Position = UDim2.new(0, 5, 0, posY)
-	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Text = text
-	btn.Parent = frame
-	return btn
+--// APPLY STATS
+local function applyStats()
+	if humanoid then
+		humanoid.WalkSpeed = speed
+		humanoid.JumpPower = jump
+	end
 end
 
-local flyBtn = createButton("Fly: OFF", 5)
-local noclipBtn = createButton("Noclip: OFF", 60)
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "OneOneXHub"
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 220, 0, 260)
+main.Position = UDim2.new(0, 20, 0.5, -130)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundColor3 = Color3.fromRGB(35,35,35)
+title.Text = "OneOneX Hub"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Parent = main
+
+--// Button creator
+local function button(text, y)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1,-10,0,30)
+	b.Position = UDim2.new(0,5,0,y)
+	b.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	b.TextColor3 = Color3.fromRGB(255,255,255)
+	b.Text = text
+	b.Parent = main
+	return b
+end
+
+local flyBtn = button("Fly: OFF", 40)
+local noclipBtn = button("Noclip: OFF", 75)
+local camBtn = button("ShiftCam: OFF", 110)
+local resetBtn = button("Reset Character", 145)
+
+local speedBtn = button("Speed: 16", 180)
+local jumpBtn = button("Jump: 50", 215)
 
 --// FLY SYSTEM
-local bodyGyro
-local bodyVelocity
+local gyro, vel
 
 local function startFly()
-	bodyGyro = Instance.new("BodyGyro")
-	bodyGyro.P = 9e4
-	bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-	bodyGyro.Parent = humanoidRootPart
+	gyro = Instance.new("BodyGyro")
+	gyro.P = 9e4
+	gyro.MaxTorque = Vector3.new(9e9,9e9,9e9)
+	gyro.Parent = root
 
-	bodyVelocity = Instance.new("BodyVelocity")
-	bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-	bodyVelocity.Parent = humanoidRootPart
+	vel = Instance.new("BodyVelocity")
+	vel.MaxForce = Vector3.new(9e9,9e9,9e9)
+	vel.Parent = root
 end
 
 local function stopFly()
-	if bodyGyro then bodyGyro:Destroy() end
-	if bodyVelocity then bodyVelocity:Destroy() end
+	if gyro then gyro:Destroy() end
+	if vel then vel:Destroy() end
 end
 
-local function updateFly()
-	if flying then
-		local cam = workspace.CurrentCamera
-		local moveDir = Vector3.zero
-
-		if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += cam.CFrame.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= cam.CFrame.LookVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= cam.CFrame.RightVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += cam.CFrame.RightVector end
-		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0,1,0) end
-		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir -= Vector3.new(0,1,0) end
-
-		bodyVelocity.Velocity = moveDir * speed
-		bodyGyro.CFrame = cam.CFrame
-	end
-end
-
---// TOGGLES
-flyBtn.MouseButton1Click:Connect(function()
-	flying = not flying
-	flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
-
-	if flying then
-		startFly()
+--// SHIFTLOCK CAMERA (custom)
+local function updateCamera()
+	if shiftlock and character and root then
+		local offset = Vector3.new(2, 2, 6)
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CFrame = CFrame.new(root.Position + offset, root.Position)
 	else
-		stopFly()
+		camera.CameraType = Enum.CameraType.Custom
 	end
+end
+
+--// BUTTONS
+flyBtn.MouseButton1Click:Connect(function()
+	fly = not fly
+	flyBtn.Text = fly and "Fly: ON" or "Fly: OFF"
+
+	if fly then startFly() else stopFly() end
 end)
 
 noclipBtn.MouseButton1Click:Connect(function()
@@ -96,18 +115,58 @@ noclipBtn.MouseButton1Click:Connect(function()
 	noclipBtn.Text = noclip and "Noclip: ON" or "Noclip: OFF"
 end)
 
---// NOCLIP LOOP
+camBtn.MouseButton1Click:Connect(function()
+	shiftlock = not shiftlock
+	camBtn.Text = shiftlock and "ShiftCam: ON" or "ShiftCam: OFF"
+end)
+
+resetBtn.MouseButton1Click:Connect(function()
+	if character then
+		character:BreakJoints()
+	end
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+	speed += 8
+	if speed > 64 then speed = 16 end
+	speedBtn.Text = "Speed: "..speed
+	applyStats()
+end)
+
+jumpBtn.MouseButton1Click:Connect(function()
+	jump += 25
+	if jump > 150 then jump = 50 end
+	jumpBtn.Text = "Jump: "..jump
+	applyStats()
+end)
+
+--// LOOPS
 RunService.Stepped:Connect(function()
 	if noclip and character then
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
+		for _,v in pairs(character:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
 			end
 		end
 	end
 end)
 
---// FLY LOOP
 RunService.RenderStepped:Connect(function()
-	updateFly()
+	applyStats()
+	updateCamera()
+
+	if fly and vel and gyro then
+		local dir = Vector3.zero
+		local camCF = camera.CFrame
+
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += camCF.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= camCF.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= camCF.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += camCF.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+
+		vel.Velocity = dir * speed
+		gyro.CFrame = camCF
+	end
 end)
